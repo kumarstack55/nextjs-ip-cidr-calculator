@@ -57,7 +57,7 @@ function RangeChart({ entries }: { entries: ValidEntry[] }) {
           <path d={`M${marker} 2 V${tiny ? 6 : 28}`} stroke="#171717" strokeWidth="2" />
         </svg>
         <span className="chart-caption" title={entry.name || undefined}>{entry.name && <span className="chart-name">{entry.name}</span>}<code>{entry.cidr.toNetworkString()}</code> <span>({entry.cidr.addressCount.toLocaleString()}アドレス)</span></span>
-        {tiny && <small className="muted">表示幅未満の範囲です（帯の幅は実寸比ではありません）。</small>}
+        {tiny && <small className="muted">⚠️帯が小さすぎるため、描画すべき幅よりも大きな幅で可視化されています。</small>}
       </div>;
     })}</div></div></div>
     <p className="muted">帯の長さは CIDR のアドレス数を示します。黒い縦線は CIDR 内の IP Address 部を示します。</p>
@@ -98,7 +98,7 @@ export default function Calculator() {
   function update(id: number, input: string) { setEntries(current => current.map(entry => entry.id === id ? { ...entry, input } : entry)); }
   function rename(id: number, name: string) { setEntries(current => current.map(entry => entry.id === id ? { ...entry, name } : entry)); }
   function add() { const id = Math.max(0, ...entries.map(entry => entry.id)) + 1; setEntries(current => [...current, { id, input: "", name: "" }]); setFocusId(id); }
-  return <main><header><h1>CIDR Calculator</h1><p className="muted">CIDR を計算し、アドレス範囲を比較できます。</p></header>
+  return <main><header><h1>CIDR Calculator</h1><p className="muted">CIDR を計算し、アドレス範囲を比較できます。計算はブラウザ上で行われ、データは外部に送信されません。URLを共有すると相手に計算を共有できます。動作の保証はしませんが、安心してご利用ください。</p></header>
     <section className="inputs" aria-labelledby="inputs-title">
     <h2 id="inputs-title">CIDR一覧</h2>
     {urlError && <p className="error" role="alert">{urlError}</p>}
