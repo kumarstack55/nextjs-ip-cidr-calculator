@@ -10,7 +10,7 @@ function focusEntry(id: number) {
   document.getElementById(`input-${id}`)?.focus({ preventScroll: true });
 }
 
-type Entry = { id: number; input: string };
+type Entry = { id: number; input: string; name: string };
 type ValidEntry = Entry & { cidr: Ipv4Cidr };
 const colors = ["#2563a6", "#8b458e", "#26735c", "#a34730", "#6657aa", "#376d7d", "#85631d"];
 const color = (id: number) => colors[(id - 1) % colors.length];
@@ -19,7 +19,7 @@ function label(id: number): string {
   for (let n = id; n > 0; n = Math.floor((n - 1) / 26)) result = String.fromCharCode(65 + (n - 1) % 26) + result;
   return `#${result}`;
 }
-const initial = (): Entry[] => ["192.168.0.0/23", "192.168.0.0/24", "192.168.1.0/24"].map((input, index) => ({ id: index + 1, input }));
+const initial = (): Entry[] => ["192.168.0.0/23", "192.168.0.0/24", "192.168.1.0/24"].map((input, index) => ({ id: index + 1, input, name: `network${index + 1}` }));
 
 function CopyButton({ value, name }: { value: string; name: string }) {
   const [message, setMessage] = useState("");
@@ -36,11 +36,11 @@ function CopyButton({ value, name }: { value: string; name: string }) {
 }
 
 function RangeChart({ entries }: { entries: ValidEntry[] }) {
-  if (!entries.length) return <section className="comparison"><h2>アドレス範囲の比較</h2><p className="muted">CIDR を入力すると比較図が表示されます。</p></section>;
+  if (!entries.length) return <section className="comparison"><h2>アドレス範囲の可視化</h2><p className="muted">CIDR を入力すると比較図が表示されます。</p></section>;
   const start = entries.reduce((n, e) => e.cidr.networkAddress < n ? e.cidr.networkAddress : n, entries[0].cidr.networkAddress);
   const end = entries.reduce((n, e) => e.cidr.endExclusive > n ? e.cidr.endExclusive : n, entries[0].cidr.endExclusive);
   return <section className="comparison" aria-labelledby="comparison-title">
-    <div className="section-heading"><h2 id="comparison-title">アドレス範囲の比較</h2></div>
+    <div className="section-heading"><h2 id="comparison-title">アドレス範囲の可視化</h2></div>
     <div className="chart-scroll"><div className="chart-grid"><div className="axis"><code>{dotted(start)}</code><code>{dotted(end - 1n)}</code></div>
     <div className="chart-rows">{entries.map(entry => {
       const x = position(entry.cidr.networkAddress, start, end, 1000);
@@ -56,11 +56,11 @@ function RangeChart({ entries }: { entries: ValidEntry[] }) {
           {!tiny && <path d={`M${marker} 2 V28`} stroke="white" strokeWidth="5" />}
           <path d={`M${marker} 2 V${tiny ? 6 : 28}`} stroke="#171717" strokeWidth="2" />
         </svg>
-        <span className="chart-caption"><code>{entry.cidr.toNetworkString()}</code> <span>({entry.cidr.addressCount.toLocaleString()}アドレス)</span></span>
+        <span className="chart-caption" title={entry.name || undefined}>{entry.name && <span className="chart-name">{entry.name}</span>}<code>{entry.cidr.toNetworkString()}</code> <span>({entry.cidr.addressCount.toLocaleString()}アドレス)</span></span>
         {tiny && <small className="muted">表示幅未満の範囲です（帯の幅は実寸比ではありません）。</small>}
       </div>;
     })}</div></div></div>
-    <p className="muted">帯の長さは CIDR のアドレス数を示します。黒い縦線は IP Address を示します。</p>
+    <p className="muted">帯の長さは CIDR のアドレス数を示します。黒い縦線は CIDR 内の IP Address 部を示します。</p>
   </section>;
 }
 
@@ -78,9 +78,9 @@ function Details({ cidr }: { cidr: Ipv4Cidr }) {
   </>;
 }
 
-function Operation({ title, value, previous, next, onChange }: { title: string; value?: string; previous: Result<Ipv4Cidr>; next: Result<Ipv4Cidr>; onChange: (value: string) => void }) {
+function Operation({ title, previous, next, onChange }: { title: string; previous: Result<Ipv4Cidr>; next: Result<Ipv4Cidr>; onChange: (value: string) => void }) {
   const tooltipId = useId();
-  return <div className="operation"><strong>{title}</strong><code className="operation-value">{value}</code>{([previous, next] as const).map((result, index) => {
+  return <div className="operation"><strong>{title}</strong>{([previous, next] as const).map((result, index) => {
     const name = `${title} ${index === 0 ? "Prev" : "Next"}`;
     const reasonId = `${tooltipId}-${index}`;
     return <span className="operation-button" key={index} tabIndex={!result.ok ? 0 : undefined} aria-label={!result.ok ? name : undefined} aria-describedby={!result.ok ? reasonId : undefined}>
@@ -96,8 +96,9 @@ export default function Calculator() {
   const parsed = entries.map(entry => ({ ...entry, result: Ipv4Cidr.parse(entry.input) }));
   const valid = parsed.flatMap(entry => entry.result.ok ? [{ ...entry, cidr: entry.result.value }] : []);
   function update(id: number, input: string) { setEntries(current => current.map(entry => entry.id === id ? { ...entry, input } : entry)); }
-  function add() { const id = Math.max(0, ...entries.map(entry => entry.id)) + 1; setEntries(current => [...current, { id, input: "" }]); setFocusId(id); }
-  return <main><header><h1>CIDR Calculator</h1><p className="muted">複数の IPv4 CIDR のアドレス範囲と重なりを比較できます。</p></header>
+  function rename(id: number, name: string) { setEntries(current => current.map(entry => entry.id === id ? { ...entry, name } : entry)); }
+  function add() { const id = Math.max(0, ...entries.map(entry => entry.id)) + 1; setEntries(current => [...current, { id, input: "", name: "" }]); setFocusId(id); }
+  return <main><header><h1>CIDR Calculator</h1><p className="muted">CIDR を計算し、アドレス範囲を比較できます。</p></header>
     <section className="inputs" aria-labelledby="inputs-title">
     <h2 id="inputs-title">CIDR一覧</h2>
     {urlError && <p className="error" role="alert">{urlError}</p>}
@@ -106,9 +107,10 @@ export default function Calculator() {
       const errorId = `error-${entry.id}`;
       return <section className="card" id={`cidr-${entry.id}`} key={entry.id} aria-labelledby={`title-${entry.id}`}>
         <h3 className="entry-id" id={`title-${entry.id}`} style={{ color: color(entry.id) }}>{label(entry.id)}</h3>
+        <input className="name-input" aria-label={`名前 ${label(entry.id)}`} placeholder="名前（任意）" value={entry.name} onChange={event => rename(entry.id, event.target.value)} />
         <div className="input-row"><label className="sr-only" htmlFor={`input-${entry.id}`}>CIDR {label(entry.id)}</label><input id={`input-${entry.id}`} ref={element => { if (element && focusId === entry.id) { element.focus(); setFocusId(null); } }} value={entry.input} onChange={event => update(entry.id, event.target.value)} placeholder="192.168.0.0/24" spellCheck={false} autoComplete="off" aria-invalid={!!entry.input && !cidr} aria-describedby={!cidr ? errorId : undefined} /></div>
         {!cidr && <p id={errorId} className={entry.input ? "error" : "muted"}>{!entry.result.ok && entry.result.reason} {entry.input && "このカードは比較図から除外されています。"}</p>}
-        {cidr && <><div className="operations"><Operation title="Prefix" value={cidr.prefix.toString()} previous={cidr.changePrefix(-1)} next={cidr.changePrefix(1)} onChange={value => update(entry.id, value)} /><Operation title="Subnet" value={cidr.toNetworkString()} previous={cidr.moveSubnet(-1)} next={cidr.moveSubnet(1)} onChange={value => update(entry.id, value)} /><Operation title="Host" value={cidr.hostOffset.toString()} previous={cidr.moveHost(-1)} next={cidr.moveHost(1)} onChange={value => update(entry.id, value)} /></div>
+        {cidr && <><div className="operations"><Operation title="Prefix" previous={cidr.changePrefix(-1)} next={cidr.changePrefix(1)} onChange={value => update(entry.id, value)} /><Operation title="Subnet" previous={cidr.moveSubnet(-1)} next={cidr.moveSubnet(1)} onChange={value => update(entry.id, value)} /><Operation title="Host" previous={cidr.moveHost(-1)} next={cidr.moveHost(1)} onChange={value => update(entry.id, value)} /></div>
           </>}
         <button className="delete-entry" aria-label={`${label(entry.id)} を削除`} onClick={() => setEntries(current => current.filter(e => e.id !== entry.id))}>削除</button>
       </section>;
@@ -117,9 +119,9 @@ export default function Calculator() {
     </section>
     <RangeChart entries={valid} />
     <section className="address-details" aria-labelledby="details-title">
-      <h2 id="details-title">CIDR詳細</h2>
+      <h2 id="details-title">詳細</h2>
       <div className="details-list">{valid.map(entry => <section className="detail-card" key={entry.id} aria-labelledby={`detail-title-${entry.id}`}>
-        <div className="card-heading"><h3 id={`detail-title-${entry.id}`}><span style={{ color: color(entry.id) }}>{label(entry.id)}</span><code>{entry.cidr.toString()}</code><CopyButton key={entry.cidr.toString()} value={entry.cidr.toString()} name={`CIDR ${label(entry.id)}`} /></h3><button className="text-button" onClick={() => focusEntry(entry.id)}>入力へ</button></div>
+        <div className="card-heading"><h3 id={`detail-title-${entry.id}`}><span style={{ color: color(entry.id) }}>{label(entry.id)}</span>{entry.name && <span className="detail-name">{entry.name}</span>}<code>{entry.cidr.toString()}</code><CopyButton key={entry.cidr.toString()} value={entry.cidr.toString()} name={`CIDR ${label(entry.id)}`} /></h3><button className="text-button" onClick={() => focusEntry(entry.id)}>入力へ</button></div>
         <p className="summary"><code>{dotted(entry.cidr.networkAddress)} ～ {dotted(entry.cidr.lastAddress)}</code><span>{entry.cidr.addressCount.toLocaleString()} アドレス</span></p>
         <Details cidr={entry.cidr} />
       </section>)}</div>

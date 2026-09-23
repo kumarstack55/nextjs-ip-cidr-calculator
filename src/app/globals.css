@@ -23,6 +23,10 @@ a { color: inherit; text-underline-offset: 3px; }
 .chart-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) 302px; align-items: center; gap: 8px; margin: 4px 0; }
 .chart-id { font-size: 17px; font-weight: bold; text-decoration: none; }
 .chart-caption { white-space: nowrap; font-size: 12px; }
+.chart-name { display: inline-block; max-width: 100px; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; margin-right: 6px; }
+.chart-caption { overflow: hidden; text-overflow: ellipsis; }
+.detail-name { overflow-wrap: anywhere; }
+.name-input { width: 100%; min-width: 0; font-family: inherit; font-size: 13px; padding: 8px; }
 .chart-row > small { grid-column: 2 / -1; }
 .chart-label { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; width: fit-content; text-decoration: none; }
 .chart-label:hover { text-decoration: underline; }
@@ -34,9 +38,9 @@ svg { display: block; width: 100%; height: 26px; }
 .cards { display: grid; gap: 6px; margin-top: 10px; }
 .details-list { display: grid; gap: 12px; margin-top: 10px; }
 .detail-card { min-width: 0; border: 1px solid #d0d0d0; padding: 12px; }
-.card { display: grid; grid-template-columns: 28px 200px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-width: 0; border: 1px solid #d0d0d0; padding: 8px 10px; scroll-margin-top: 16px; }
+.card { display: grid; grid-template-columns: 28px 120px 180px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-width: 0; border: 1px solid #d0d0d0; padding: 8px 10px; scroll-margin-top: 16px; }
 .entry-id { font-size: 18px; }
-.delete-entry { grid-column: 4; grid-row: 1; }
+.delete-entry { grid-column: 5; grid-row: 1; }
 .card > p { grid-column: 2 / 4; margin: 0; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .card:target { border-color: #555; }
@@ -53,7 +57,6 @@ input[aria-invalid="true"] { border-color: #a12b2b; }
 .error { color: #a12b2b; }
 .operations { display: flex; justify-content: space-between; gap: 12px; min-width: 0; }
 .operation { display: flex; gap: 6px; align-items: center; }
-.operation-value { min-width: 2ch; text-align: right; white-space: nowrap; font-size: 12px; }
 .operation button { padding: 5px 7px; min-height: 30px; white-space: nowrap; }
 .operation-button { position: relative; display: inline-flex; }
 .operation-button button:disabled { pointer-events: none; }
@@ -77,6 +80,8 @@ tbody th { font-weight: normal; }
 .explanation { font-size: 13px; margin-bottom: 0; }
 @media (max-width: 1150px) {
   .card { grid-template-columns: 28px minmax(0, 1fr) auto; }
+  .name-input { grid-column: 2; }
+  .input-row { grid-column: 2 / -1; }
   .delete-entry { grid-column: 3; }
   .operations { grid-column: 2 / -1; justify-content: flex-start; flex-wrap: wrap; }
   .card > p { grid-column: 2 / -1; }

@@ -7,8 +7,10 @@ test("URL shares drafts, IDs and empty lists without navigation history growth",
   await page.locator("#input-1").fill("192.168.0.42/24");
   await page.getByRole("button", { name: "#B を削除", exact: true }).click();
   await page.getByRole("button", { name: "＋ CIDR を追加" }).click();
-  await expect.poll(() => Buffer.from(new URL(page.url()).hash.slice(4), "base64url").toString("utf8")).toBe('[[1,"192.168.0.42/24"],[3,"192.168.1.0/24"],[4,""]]');
+  await expect.poll(() => Buffer.from(new URL(page.url()).hash.slice(4), "base64url").toString("utf8")).toBe('[[1,"192.168.0.42/24","network1"],[3,"192.168.1.0/24","network3"],[4,""]]');
   expect(await page.evaluate(() => history.length)).toBe(historyLength);
+  await page.getByRole("textbox", { name: "名前 #A", exact: true }).fill("社内LAN 🌐");
+  await expect.poll(() => Buffer.from(new URL(page.url()).hash.slice(4), "base64url").toString("utf8")).toContain("社内LAN 🌐");
   const shared = page.url();
   await page.locator(".detail-card").first().getByRole("button", { name: "入力へ", exact: true }).click();
   expect(page.url()).toBe(shared);
@@ -17,6 +19,9 @@ test("URL shares drafts, IDs and empty lists without navigation history growth",
   await expect(receiver.locator(".card")).toHaveCount(3);
   await expect(receiver.locator("#input-1")).toHaveValue("192.168.0.42/24");
   await expect(receiver.locator("#input-4")).toHaveValue("");
+  await expect(receiver.getByRole("textbox", { name: "名前 #A", exact: true })).toHaveValue("社内LAN 🌐");
+  await expect(receiver.locator(".chart-name")).toHaveText(["社内LAN 🌐", "network3"]);
+  await expect(receiver.locator(".detail-name")).toHaveText(["社内LAN 🌐", "network3"]);
   await receiver.locator("#input-4").fill("invalid draft");
   await expect.poll(() => Buffer.from(new URL(receiver.url()).hash.slice(4), "base64url").toString("utf8")).toContain("invalid draft");
   await receiver.reload();
@@ -43,7 +48,7 @@ test("initial comparison, operations, validation and add/delete", async ({ page,
   await page.goto("/");
   await expect(page.locator(".card")).toHaveCount(3);
   const first = page.locator(".card").first();
-  const input = first.getByRole("textbox");
+  const input = first.getByRole("textbox", { name: /^CIDR / });
   await input.fill("192.168.0.10/24");
   await first.getByRole("button", { name: "Subnet Next" }).click();
   await expect(input).toHaveValue("192.168.1.10/24");
@@ -51,7 +56,6 @@ test("initial comparison, operations, validation and add/delete", async ({ page,
   await expect(input).toHaveValue("192.168.1.10/25");
   await first.getByRole("button", { name: "Host Prev" }).click();
   await expect(input).toHaveValue("192.168.1.9/25");
-  await expect(first.locator(".operation-value")).toHaveText(["25", "192.168.1.0/25", "9"]);
   await page.locator(".detail-card").first().getByRole("button", { name: "Copy CIDR #A", exact: true }).click();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("192.168.1.9/25");
   await expect(page.locator(".detail-card").first().getByRole("button", { name: "Copied CIDR #A", exact: true })).toHaveText("Copied");
@@ -62,7 +66,7 @@ test("initial comparison, operations, validation and add/delete", async ({ page,
   await expect(page.locator(".detail-card")).toHaveCount(2);
   await page.getByRole("button", { name: "＋ CIDR を追加" }).click();
   await expect(page.locator(".card")).toHaveCount(4);
-  await expect(page.locator(".card").last().getByRole("textbox")).toBeFocused();
+  await expect(page.locator(".card").last().getByRole("textbox", { name: /^CIDR / })).toBeFocused();
   await page.getByRole("button", { name: "#B を削除", exact: true }).click();
   await expect(page.locator("#cidr-3 h3")).toHaveText("#C");
   await expect(page.locator(".card")).toHaveCount(3);
@@ -73,9 +77,9 @@ test("initial comparison, operations, validation and add/delete", async ({ page,
 test("broadcast explanations, boundaries, tiny range and empty state", async ({ page }) => {
   await page.goto("/");
   const first = page.locator(".card").first();
-  await first.getByRole("textbox").fill("10.0.0.0/31");
+  await first.getByRole("textbox", { name: /^CIDR / }).fill("10.0.0.0/31");
   await expect(page.locator(".detail-card").first().getByRole("link", { name: "RFC 3021 §2.2" })).toBeVisible();
-  await first.getByRole("textbox").fill("10.0.0.0/32");
+  await first.getByRole("textbox", { name: /^CIDR / }).fill("10.0.0.0/32");
   await expect(page.locator(".detail-card").first().getByRole("link", { name: /RFC 4632/ })).toBeVisible();
   await expect(first.getByRole("button", { name: "Host Next" })).toBeDisabled();
   const disabledHost = first.locator(".operation-button").filter({ has: page.getByRole("button", { name: "Host Next" }) });
@@ -93,6 +97,6 @@ test("desktop and mobile layout contain horizontal scrolling inside results", as
   await page.screenshot({ path: "test-results/desktop.png", fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await expect(page.locator(".card").first().getByRole("textbox")).toBeVisible();
+  await expect(page.locator(".card").first().getByRole("textbox", { name: /^CIDR / })).toBeVisible();
   await page.screenshot({ path: "test-results/mobile.png", fullPage: true });
 });

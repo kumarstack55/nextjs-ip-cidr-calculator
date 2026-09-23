@@ -1,9 +1,9 @@
-export type SharedEntry = { id: number; input: string };
+export type SharedEntry = { id: number; input: string; name: string };
 const MAX_HASH_LENGTH = 64_000;
 
 /** Versioned, uncompressed JSON. IDs preserve labels and colors after deletions. */
 export function encodeEntries(entries: SharedEntry[]): string {
-  const json = JSON.stringify(entries.map(({ id, input }) => [id, input]));
+  const json = JSON.stringify(entries.map(({ id, input, name }) => name ? [id, input, name] : [id, input]));
   const bytes = new TextEncoder().encode(json);
   const base64 = btoa(Array.from(bytes, byte => String.fromCharCode(byte)).join(""));
   const hash = `#v2=${base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")}`;
@@ -29,9 +29,9 @@ export function decodeEntries(hash: string): SharedEntry[] | null {
     if (!Array.isArray(data)) throw new Error();
     const ids = new Set<number>();
     return data.map(item => {
-      if (!Array.isArray(item) || item.length !== 2 || !Number.isSafeInteger(item[0]) || item[0] < 1 || item[0] >= Number.MAX_SAFE_INTEGER || typeof item[1] !== "string" || ids.has(item[0])) throw new Error();
+      if (!Array.isArray(item) || (item.length !== 2 && item.length !== 3) || !Number.isSafeInteger(item[0]) || item[0] < 1 || item[0] >= Number.MAX_SAFE_INTEGER || typeof item[1] !== "string" || (item.length === 3 && typeof item[2] !== "string") || ids.has(item[0])) throw new Error();
       ids.add(item[0]);
-      return { id: item[0], input: item[1] };
+      return { id: item[0], input: item[1], name: item[2] ?? "" };
     });
   } catch {
     throw new Error("共有 URL を読み取れませんでした。初期サンプルを表示しています。入力を変更すると URL が更新されます。");
