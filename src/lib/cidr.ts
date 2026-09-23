@@ -22,14 +22,14 @@ export class Ipv4Cidr {
 
   static parse(input: string): Result<Ipv4Cidr> {
     const text = input.trim();
-    if (!text) return { ok: false, reason: "CIDR を入力してください。" };
-    if (text.includes(":")) return { ok: false, reason: "現在は IPv4 のみ対応しています。" };
+    if (!text) return { ok: false, reason: "Enter a CIDR." };
+    if (text.includes(":")) return { ok: false, reason: "Only IPv4 is currently supported." };
     const match = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\/(\d{1,2})$/.exec(text);
-    if (!match) return { ok: false, reason: "192.168.0.0/24 の形式で入力してください。" };
+    if (!match) return { ok: false, reason: "Enter a CIDR in the format 192.168.0.0/24." };
     const octets = match.slice(1, 5).map(Number);
-    if (octets.some(n => n > 255)) return { ok: false, reason: "各オクテットは 0〜255 で入力してください。" };
+    if (octets.some(n => n > 255)) return { ok: false, reason: "Each octet must be between 0 and 255." };
     const prefix = Number(match[5]);
-    if (prefix > 32) return { ok: false, reason: "Prefix は 0〜32 で入力してください。" };
+    if (prefix > 32) return { ok: false, reason: "The prefix length must be between 0 and 32." };
     return { ok: true, value: new Ipv4Cidr(octets.reduce((acc, n) => (acc << 8n) + BigInt(n), 0n), prefix) };
   }
 
@@ -49,21 +49,21 @@ export class Ipv4Cidr {
   changePrefix(delta: -1 | 1): Result<Ipv4Cidr> {
     const prefix = this.prefix + delta;
     return prefix < 0 || prefix > 32
-      ? { ok: false, reason: "Prefix は /0〜/32 の範囲です。" }
+      ? { ok: false, reason: "The prefix length must stay between /0 and /32." }
       : { ok: true, value: new Ipv4Cidr(this.address, prefix) };
   }
 
   moveSubnet(delta: -1 | 1): Result<Ipv4Cidr> {
     const address = this.address + BigInt(delta) * this.addressCount;
     return address < 0n || address >= LIMIT
-      ? { ok: false, reason: "IPv4 アドレス空間の端です。" }
+      ? { ok: false, reason: "This is the edge of the IPv4 address space." }
       : { ok: true, value: new Ipv4Cidr(address, this.prefix) };
   }
 
   moveHost(delta: -1 | 1): Result<Ipv4Cidr> {
     const address = this.address + BigInt(delta);
     return address < this.networkAddress || address >= this.endExclusive
-      ? { ok: false, reason: delta < 0 ? "ネットワークの先頭です。" : "ネットワークの末尾です。" }
+      ? { ok: false, reason: delta < 0 ? "This is the first address in the network." : "This is the last address in the network." }
       : { ok: true, value: new Ipv4Cidr(address, this.prefix) };
   }
 

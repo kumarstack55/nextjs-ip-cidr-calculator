@@ -45,7 +45,7 @@ export function useSharedEntries(initial: () => SharedEntry[]) {
         lastSnapshot.current = snapshot;
         setUrlError("");
       } catch (error) {
-        setUrlError(error instanceof Error ? error.message : "URL を更新できませんでした。");
+        setUrlError(error instanceof Error ? error.message : "Unable to update the URL.");
       }
     }, 150);
     return () => clearTimeout(timer);

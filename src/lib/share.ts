@@ -7,14 +7,14 @@ export function encodeEntries(entries: SharedEntry[]): string {
   const bytes = new TextEncoder().encode(json);
   const base64 = btoa(Array.from(bytes, byte => String.fromCharCode(byte)).join(""));
   const hash = `#v2=${base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")}`;
-  if (hash.length > MAX_HASH_LENGTH) throw new Error("入力が長すぎるため URL を更新できません。入力を短くするか CIDR を減らしてください。");
+  if (hash.length > MAX_HASH_LENGTH) throw new Error("The input is too long to update the URL. Shorten the input or remove some CIDRs.");
   return hash;
 }
 
 export function decodeEntries(hash: string): SharedEntry[] | null {
   if (!hash || hash.startsWith("#cidr-")) return null;
-  if (!hash.startsWith("#v1=") && !hash.startsWith("#v2=")) throw new Error("この共有 URL の形式には対応していません。");
-  if (hash.length > MAX_HASH_LENGTH) throw new Error("共有 URL が長すぎます。");
+  if (!hash.startsWith("#v1=") && !hash.startsWith("#v2=")) throw new Error("This shared URL format is not supported.");
+  if (hash.length > MAX_HASH_LENGTH) throw new Error("The shared URL is too long.");
   try {
     const payload = hash.slice(4);
     let json: string;
@@ -34,6 +34,6 @@ export function decodeEntries(hash: string): SharedEntry[] | null {
       return { id: item[0], input: item[1], name: item[2] ?? "" };
     });
   } catch {
-    throw new Error("共有 URL を読み取れませんでした。初期サンプルを表示しています。入力を変更すると URL が更新されます。");
+    throw new Error("Unable to read the shared URL. Showing the default examples. Editing an entry will update the URL.");
   }
 }
