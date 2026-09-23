@@ -1,0 +1,98 @@
+import { test, expect } from "@playwright/test";
+
+test("URL shares drafts, IDs and empty lists without navigation history growth", async ({ page, context }) => {
+  await page.goto("/");
+  await expect(page).toHaveURL(/#v2=/);
+  const historyLength = await page.evaluate(() => history.length);
+  await page.locator("#input-1").fill("192.168.0.42/24");
+  await page.getByRole("button", { name: "#B を削除", exact: true }).click();
+  await page.getByRole("button", { name: "＋ CIDR を追加" }).click();
+  await expect.poll(() => Buffer.from(new URL(page.url()).hash.slice(4), "base64url").toString("utf8")).toBe('[[1,"192.168.0.42/24"],[3,"192.168.1.0/24"],[4,""]]');
+  expect(await page.evaluate(() => history.length)).toBe(historyLength);
+  const shared = page.url();
+  await page.locator(".detail-card").first().getByRole("button", { name: "入力へ", exact: true }).click();
+  expect(page.url()).toBe(shared);
+  const receiver = await context.newPage();
+  await receiver.goto(shared);
+  await expect(receiver.locator(".card")).toHaveCount(3);
+  await expect(receiver.locator("#input-1")).toHaveValue("192.168.0.42/24");
+  await expect(receiver.locator("#input-4")).toHaveValue("");
+  await receiver.locator("#input-4").fill("invalid draft");
+  await expect.poll(() => Buffer.from(new URL(receiver.url()).hash.slice(4), "base64url").toString("utf8")).toContain("invalid draft");
+  await receiver.reload();
+  await expect(receiver.locator("#input-4")).toHaveValue("invalid draft");
+  for (const id of [1, 3, 4]) await receiver.getByRole("button", { name: `#${id === 1 ? "A" : id === 3 ? "C" : "D"} を削除`, exact: true }).click();
+  await expect.poll(() => Buffer.from(new URL(receiver.url()).hash.slice(4), "base64url").toString("utf8")).toBe("[]");
+  await receiver.reload();
+  await expect(receiver.locator(".card")).toHaveCount(0);
+  await receiver.goto("/#v1=%broken");
+  await expect(receiver.locator(".inputs").getByRole("alert")).toBeVisible();
+  await expect(receiver.locator(".card")).toHaveCount(3);
+  expect(new URL(receiver.url()).hash).toBe("#v1=%broken");
+  await receiver.goBack();
+  await expect(receiver.locator(".card")).toHaveCount(0);
+  await receiver.goForward();
+  await expect(receiver.locator(".inputs").getByRole("alert")).toBeVisible();
+  await receiver.close();
+});
+
+test("initial comparison, operations, validation and add/delete", async ({ page, context }) => {
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto("/");
+  await expect(page.locator(".card")).toHaveCount(3);
+  const first = page.locator(".card").first();
+  const input = first.getByRole("textbox");
+  await input.fill("192.168.0.10/24");
+  await first.getByRole("button", { name: "Subnet Next" }).click();
+  await expect(input).toHaveValue("192.168.1.10/24");
+  await first.getByRole("button", { name: "Prefix Next" }).click();
+  await expect(input).toHaveValue("192.168.1.10/25");
+  await first.getByRole("button", { name: "Host Prev" }).click();
+  await expect(input).toHaveValue("192.168.1.9/25");
+  await expect(first.locator(".operation-value")).toHaveText(["25", "192.168.1.0/25", "9"]);
+  await page.locator(".detail-card").first().getByRole("button", { name: "Copy CIDR #A", exact: true }).click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("192.168.1.9/25");
+  await expect(page.locator(".detail-card").first().getByRole("button", { name: "Copied CIDR #A", exact: true })).toHaveText("Copied");
+  await expect(page.locator(".detail-card").first().getByRole("button", { name: "Copy CIDR #A", exact: true })).toHaveText("Copy");
+  await input.fill("invalid");
+  await expect(first.getByText(/このカードは比較図から除外/)).toBeVisible();
+  await expect(page.locator(".chart-row")).toHaveCount(2);
+  await expect(page.locator(".detail-card")).toHaveCount(2);
+  await page.getByRole("button", { name: "＋ CIDR を追加" }).click();
+  await expect(page.locator(".card")).toHaveCount(4);
+  await expect(page.locator(".card").last().getByRole("textbox")).toBeFocused();
+  await page.getByRole("button", { name: "#B を削除", exact: true }).click();
+  await expect(page.locator("#cidr-3 h3")).toHaveText("#C");
+  await expect(page.locator(".card")).toHaveCount(3);
+  await expect(page.getByRole("button", { name: "初期サンプルに戻す" })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test("broadcast explanations, boundaries, tiny range and empty state", async ({ page }) => {
+  await page.goto("/");
+  const first = page.locator(".card").first();
+  await first.getByRole("textbox").fill("10.0.0.0/31");
+  await expect(page.locator(".detail-card").first().getByRole("link", { name: "RFC 3021 §2.2" })).toBeVisible();
+  await first.getByRole("textbox").fill("10.0.0.0/32");
+  await expect(page.locator(".detail-card").first().getByRole("link", { name: /RFC 4632/ })).toBeVisible();
+  await expect(first.getByRole("button", { name: "Host Next" })).toBeDisabled();
+  const disabledHost = first.locator(".operation-button").filter({ has: page.getByRole("button", { name: "Host Next" }) });
+  await expect(disabledHost.getByRole("tooltip")).not.toBeVisible();
+  await disabledHost.hover();
+  await expect(disabledHost.getByRole("tooltip")).toHaveText("ネットワークの末尾です。");
+  await expect(page.locator(".chart-row").first().getByText("表示幅未満の範囲です（帯の幅は実寸比ではありません）。")).toBeVisible();
+  for (const id of [1, 2, 3]) await page.locator(`#cidr-${id}`).getByRole("button", { name: /を削除/ }).click();
+  await expect(page.getByText("CIDR を入力すると比較図が表示されます。")).toBeVisible();
+});
+
+test("desktop and mobile layout contain horizontal scrolling inside results", async ({ page }) => {
+  await page.goto("/");
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.screenshot({ path: "test-results/desktop.png", fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await expect(page.locator(".card").first().getByRole("textbox")).toBeVisible();
+  await page.screenshot({ path: "test-results/mobile.png", fullPage: true });
+});
