@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "CIDR Calculator",
-  description: "複数の IPv4 CIDR のアドレス範囲と重なりを比較する計算機",
+  description: "複数の CIDR のアドレス範囲と重なりを比較する計算機",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
